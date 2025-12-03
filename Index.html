@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🟦 Azul Leaderboard</title>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=MedievalSharp&family=Poppins:wght@400;600;700&display=swap');
+
+  :root {
+    --bg1: #0e4c92;
+    --bg2: #1976d2;
+    --bg3: #64b5f6;
+    --bg4: #bbdefb;
+    --text: #e8f4ff;
+    --glass: rgba(255,255,255,0.12);
+    --glow: rgba(255,255,255,0.2);
+    --gold: #ffd700;
+    --silver: #c0c0c0;
+    --bronze: #cd7f32;
+  }
+
+  body.dark-mode {
+    --bg1: #042a52;
+    --bg2: #063970;
+    --bg3: #0a497a;
+    --bg4: #1565c0;
+    --text: #d7e9ff;
+    --glass: rgba(0,0,0,0.4);
+    --glow: rgba(255,255,255,0.05);
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
+    color: var(--text);
+    overflow-x: hidden;
+    background: linear-gradient(-45deg, var(--bg1), var(--bg2), var(--bg3), var(--bg4));
+    background-size: 400% 400%;
+    animation: gradientShift 20s ease infinite;
+    transition: background 1s ease, color 0.4s ease;
+    position: relative;
+  }
+
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* 🎨 Azul tile mosaic background */
+  body::before {
+    content: "";
+    background: url('azul.png') center/contain repeat;
+    background-color: #000;
+    filter: blur(6px) brightness(0.65);
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+  }
+
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: -1;
+  }
+
+  h1 {
+    text-align: center;
+    margin: 50px 0 20px;
+    font-size: 3.2rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(0,0,0,0.5);
+    font-family: 'MedievalSharp', cursive;
+  }
+
+  .leaderboard {
+    width: 90%;
+    max-width: 900px;
+    margin: 0 auto 50px;
+    background: var(--glass);
+    border-radius: 20px;
+    backdrop-filter: blur(15px);
+    box-shadow: 0 0 25px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: rgba(255,255,255,0.3); }
+  th, td {
+    padding: 16px 20px;
+    text-align: center;
+    font-size: 1.1rem;
+    text-shadow: none;
+  }
+  th {
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  tr { transition: all 0.4s ease; }
+  tr:hover { background: rgba(255,255,255,0.12); transform: scale(1.01); }
+
+  /* 🏆 Top 3 ranks */
+  .rank-1 td { color: var(--gold); font-weight: 700; }
+  .rank-2 td { color: var(--silver); font-weight: 600; }
+  .rank-3 td { color: var(--bronze); font-weight: 600; }
+
+  footer {
+    text-align: center;
+    opacity: 0.9;
+    margin-bottom: 30px;
+    font-size: 0.9rem;
+  }
+
+  .toggle-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0,0,0,0.3);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 10px 14px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    backdrop-filter: blur(5px);
+    transition: all 0.4s ease;
+    box-shadow: 0 0 10px rgba(255,255,255,0.2);
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .toggle-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.1); }
+</style>
+</head>
+
+<body class="dark-mode">
+  <button class="toggle-btn" id="theme-toggle">☀️</button>
+  <h1>🟦 Azul Leaderboard</h1>
+
+  <div class="leaderboard">
+    <table id="leaderboard-table">
+      <thead><tr id="table-header"></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <footer>✨ Last updated: <span id="update-time"></span></footer>
+
+<script>
+const GOOGLE_SHEET_CSV_URL =
+  "YOUR_GOOGLE_SHEET_CSV_URL_HERE";
+
+async function loadLeaderboard() {
+  try {
+    const response = await fetch(GOOGLE_SHEET_CSV_URL + "&t=" + new Date().getTime());
+    const data = await response.text();
+
+    const lines = data.trim().split("\n");
+    const headers = lines[0].split(",").map(h => h.trim());
+    const rows = lines.slice(1).map(r => r.split(",").map(v => v.trim()));
+
+    const nameIndex = headers.findIndex(h => /name/i.test(h));
+    const scoreIndices = headers
+      .map((h, i) => (/score/i.test(h) ? i : null))
+      .filter(i => i !== null);
+
+    const players = rows.map(row => {
+      const name = row[nameIndex] || "Unknown";
+      const scores = scoreIndices.map(i => parseFloat(row[i]) || 0).sort((a, b) => b - a);
+      const top3 = scores.slice(0, 3);
+      const totalScore = top3.reduce((a, b) => a + b, 0);
+      return { name, totalScore, top3 };
+    });
+
+    players.sort((a, b) => b.totalScore - a.totalScore);
+
+    // Tie-friendly ranking
+    let currentRank = 1;
+    let previousScore = null;
+    let displayedRank = 1;
+
+    players.forEach((player) => {
+      if (player.totalScore !== previousScore) displayedRank = currentRank;
+      player.rank = displayedRank;
+      previousScore = player.totalScore;
+      currentRank++;
+    });
+
+    const headerRow = document.getElementById("table-header");
+    headerRow.innerHTML = "<th>Rank</th><th>Name</th><th>Score</th>";
+
+    const tbody = document.querySelector("#leaderboard-table tbody");
+    tbody.innerHTML = "";
+
+    players.forEach((p) => {
+      const crown = p.rank === 1 ? "👑" : p.rank === 2 ? "🥈" : p.rank === 3 ? "🥉" : "";
+      const tooltip = `Top 3: ${p.top3.join(", ")} (Total: ${p.totalScore})`;
+
+      const tr = document.createElement("tr");
+      tr.className = `rank-${p.rank}`;
+
+      tr.innerHTML = `
+        <td>${p.rank}</td>
+        <td>${p.name} ${crown}</td>
+        <td title="${tooltip}">${p.totalScore}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.querySelector("#update-time").textContent = new Date().toLocaleString();
+
+  } catch (err) {
+    console.error("Error loading leaderboard:", err);
+  }
+}
+
+loadLeaderboard();
+setInterval(loadLeaderboard, 30000);
+
+document.getElementById("theme-toggle").addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+  const isDark = document.body.classList.contains("dark-mode");
+  document.getElementById("theme-toggle").textContent = isDark ? "☀️" : "🌙";
+});
+</script>
+</body>
+</html>
